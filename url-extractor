@@ -1,0 +1,52 @@
+import requests
+
+supabase_url = 'http://localhost:8000'  
+storage_bucket = 'wav-files' 
+supabase_key = 'your_service_role_key'  
+
+# Function to list files in a Supabase Storage bucket
+def list_files_in_bucket(supabase_url, storage_bucket, supabase_key):
+    list_url = f"{supabase_url}/storage/v1/object/public/{storage_bucket}"
+    headers = {
+        'apikey': supabase_key,
+        'Authorization': f'Bearer {supabase_key}'
+    }
+    response = requests.get(list_url, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print("Failed to list files.")
+        return []
+
+# Function to insert file URLs into a Supabase table
+def insert_file_urls_into_table(file_urls, supabase_url, table_name, supabase_key):
+    insert_url = f"{supabase_url}/rest/v1/{table_name}"
+    headers = {
+        'apikey': supabase_key,
+        'Authorization': f'Bearer {supabase_key}',
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'  # Ask to return the inserted rows
+    }
+    # Prepare the data for insertion
+    data = [{'file_url': url} for url in file_urls]
+    response = requests.post(insert_url, headers=headers, json=data)
+    if response.status_code == 201:
+        print("File URLs inserted into table successfully.")
+        print(response.json())
+    else:
+        print("Failed to insert file URLs into table.")
+        print(response.text)
+
+def main():
+    files_info = list_files_in_bucket(supabase_url, storage_bucket, supabase_key)
+    if files_info:
+        # Construct the full URLs for each file
+        base_url = f"{supabase_url}/storage/v1/object/public/{storage_bucket}/"
+        file_urls = [base_url + file['name'] for file in files_info['objects']]
+        
+        # Insert file URLs into the table
+        table_name = 'audio_files'  # The name of the table where URLs will be inserted
+        insert_file_urls_into_table(file_urls, supabase_url, table_name, supabase_key)
+
+if __name__ == '__main__':
+    main()
